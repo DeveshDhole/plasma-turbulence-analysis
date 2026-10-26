@@ -1,0 +1,34 @@
+# ---- tool caches (always regenerated, safe to delete)
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.venv/
+.vscode/
+.idea/
+.DS_Store
+
+# ---- data, results and analysis caches (live outside the repository)
+results
+cache
+*.h5
+*.npy
+*.npz
+*.mp4
+*.tar.gz
+*.log
+frames/
+gaussian_fits*/
+
+# result tables; small final data for a paper can be kept in that paper's data/ folder
+*.csv
+!projects/*/data/*.csv
+
+# images, except figures deliberately kept for a paper
+*.png
+*.jpg
+!projects/*/figures/*.pdf
+
+# folder of things to delete
+archive/to_delete/
