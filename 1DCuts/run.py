@@ -25,7 +25,7 @@ dx = dy   = 0.0625
 raw_tags  = ["Bx", "By", "Bz", "Ex", "Ey", "Ez", "Dn1", "Ux1", "Uy1", "Uz1", "Ppar1", "Pper1"]             # fields read straight from files: <tag>_ApJ_t<time>.h5
 
 # Anything you want cut: raw tags AND/OR derived names (keys returned by derived() below)
-cut_quantities = ["Bx", "By", "Bz", "Dn1"]  # names of quantities to cut along the irrational line
+cut_quantities = ["Bx", "By", "Bz", "Dn1", "Jx", "Jy", "Jz", "Ux1", "Uy1", "Uz1", "Tpar1", "Tper1"]  # names of quantities to cut along the irrational line
 
 # Vectors -> adds <name>_par, <name>_perp, <name>_z along the cut. Components can be raw or derived.
 vectors   = {}                             # e.g. {"B": ("Bx", "By", "Bz"), "J": ("Jx", "Jy", "Jz")}
