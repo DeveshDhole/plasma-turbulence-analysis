@@ -4,6 +4,7 @@ Function copied verbatim from the Paper 1 pipeline notebook
 (CSDetectionMaxTurbulenceFullPipelineWithKCutoff_Beta1.ipynb); behaviour unchanged.
 """
 import numpy as np
+from scipy.ndimage import label
 
 
 def detect_current_sheets(mod_Jz):
@@ -77,3 +78,18 @@ def detect_current_sheets(mod_Jz):
         current_sheets.append(sheet_points)
 
     return current_sheets
+
+
+def get_max_coords(cleaned_mask, J2):
+    """Per-region argmax of |J2|."""
+    labeled_mask, num_features = label(cleaned_mask)
+    max_coords = []
+    for i in range(1, num_features + 1):
+        region = (labeled_mask == i)
+        region_vals = J2[region]
+        if region_vals.size == 0:
+            continue
+        max_pos = np.argmax(np.abs(region_vals))
+        xs_r, ys_r = np.where(region)
+        max_coords.append((xs_r[max_pos], ys_r[max_pos])) 
+    return max_coords, labeled_mask

@@ -153,15 +153,38 @@ functions are the production methods.
   (tested on synthetic fields) and saves the same figure names, in `results/jpar_jperp/JparJperpSpectrum/`. Dropped:
   an unused Gaussian-filter function and unused imports.
 - `projects/apj2015/` (`ApJ2015`, `ApJ2015-Copy1`): data from `EXTERNAL_DATA_ROOT` (`/DATA/DEVESH/ApJ2015/`, 107
-  path lines) and `DATA_ROOT`; figures to `results/apj2015/`. Their own 2D-FFT and 1D-FFT derivative variants are kept.
+  path lines) and `DATA_ROOT`; figures to `results/apj2015/`. Its own FFT derivatives were later replaced by the
+  shared ones (see the note below); the finite-difference `partial_x_2d` / `partial_y_2d` are kept.
   Fixed: two plot titles with `'$\Delta B_y$'` in non-raw strings (an invalid escape sequence that Python 3.12 warns
   about and a future version will reject) now use raw strings; the titles are unchanged.
 - `ApJ2015-Copy1` was not a copy of `ApJ2015`: its imports and helper functions were identical, and its one new cell,
   a 2 x 2 figure of the t = 200 fields (|B_perp|^2, J_par, Delta T_p/T_0, A_p; `visuals.png`), is now a cell in
-  `ApJ2015` right after the A_p plot. The notebook itself is in `archive/apj2015/`. Caution: `ApJ2015` defines
-  `partial_x_fft`/`partial_y_fft` twice with opposite axis conventions (second cell: x along axis 0; a later cell:
-  x along axis 1). The cells in between use the first and the last few use the second, so run the notebook in order;
-  the new figure cell sits in the first group, as its code expects.
+  `ApJ2015` right after the A_p plot. The notebook itself is in `archive/apj2015/`.
+- `ApJ2015` defined `partial_x_fft`/`partial_y_fft` twice: in its second cell (x along axis 0, the same as
+  `shared.fields` to ~1e-14) and again in a later cell with x along axis 1. That later version was applied to data read
+  with `.T` (x along axis 0), so the cells using it (the two div B checks at t = 200 and J_par at t = 42) swapped the x
+  and y derivatives. Both definitions are gone and the notebook imports the shared ones, so those three cells now
+  compute div B and J_par with the same convention as every other notebook; the other cells are unchanged.
+- The 2D-FFT copies of `partial_x_fft` / `partial_y_fft` kept so far in 17 more notebooks (each matches `shared.fields`
+  to ~1e-14) are removed, and those notebooks import the shared ones: `AvgSpectrum`, `Brms`, `DensitySpectrum`,
+  `Jrms`, `ReconnectionTime`, `ResistivityCheck`, `Spectrum`, `SpectrumAnimation` (quality_checks); `FilteringCheck`,
+  `FilteringCheckEmanuele`, `IterativeFilteringCheck`, `IterativeFilteringIndividualComponents`,
+  `IterativeFilteringkcutoff` (experiments); `JBandPass`, `Visuals` (paper1_methods); `Kdiss` (jpar_jperp);
+  `IterativeFilteringCheck` (cs_identification). No notebook defines its own `partial_x_fft` / `partial_y_fft` any more.
+- More helpers that were copied into many notebooks now live in `shared/` (each shared version gives identical
+  results): `partial_x_2d` / `partial_y_2d` (finite differences) in `shared/fields.py`, `gaussian_fft_filter_2d` in
+  `shared/filtering.py`, and `index_of_just_smaller` in the new `shared/utils.py`. `shared/filtering.py` now imports
+  fifpy inside the iterative-filtering functions, so its other functions work without fifpy. Removed from 28 notebooks
+  (quality_checks: `AvgSpectrum`, `Brms`, `DensitySpectrum`, `Jrms`, `ReconnectionTime`, `ResistivityCheck`, `Spectrum`,
+  `SpectrumAnimation`; jpar_jperp: the four `Jpar_CSDetection*`, `Kdiss`; single_sheet: the five `SingleCSAnalysis*`,
+  `MagRecEvent`; `ApJ2015`; `JBandPass`, `Visuals`; experiments: `FilteringCheck`, `FilteringCheckEmanuele`,
+  `IterativeFilteringCheck`, `IterativeFilteringIndividualComponents`, `IterativeFilteringkcutoff`; and
+  cs_identification `IterativeFilteringCheck`). Most of those copies were never called and are simply gone; the
+  notebooks that call them import the shared versions. Function cells left with nothing in them were removed.
+- The `iterative_filtering3D` copies in `SingleCSAnalysisBeta0.0625`, `SingleCSAnalysisBeta1`,
+  `SingleCSAnalysisBeta16` and `MagRecEvent` differed from the shared one only by a hard-coded `Xi=2.0` (the `Xi`
+  argument was ignored). They are removed; the live call in `SingleCSAnalysisBeta0.0625` and the commented-out calls
+  now pass `Xi=2.0` to the shared function, which gives the same result.
 - `projects/experiments/` (`FilteringCheck`, `FilteringCheckEmanuele`, `IterativeFilteringCheck`,
   `IterativeFilteringIndividualComponents`, `IterativeFilteringkcutoff`): identical copies of
   `compute_radial_spectrum`, `iterative_filtering1D`, `iterative_filtering3D` and `k_to_mask_length` replaced by imports;

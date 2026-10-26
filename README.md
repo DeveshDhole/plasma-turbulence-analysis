@@ -18,10 +18,11 @@ projects/              one folder per piece of work (code only)
 shared/                code used by several projects (import from here, don't copy)
   paths.py             where data, results and caches live (one place to change)
   fields.py            spectral derivatives, radial spectra
-  filtering.py         iterative filtering (fifpy), incl. the k-cutoff version
+  filtering.py         iterative filtering (fifpy), incl. the k-cutoff version; Gaussian low-pass filter
   detection.py         current-sheet detection
   thickness.py         thickness-method helpers (production versions)
   stats.py             statistics helpers
+  utils.py             small array helpers (index_of_just_smaller)
   loading.py           reading CAMELIA output: load("Bx", t, beta_p=1, brms=0.24) or load("Bx", t, run_folder, tag="ApJ")
   filters.py           filtering module (used by experiments/FilteringCheckEmanuele)
   current_sheets_id_char_collisionless_turbulence.py   current-sheet identification/characterisation module

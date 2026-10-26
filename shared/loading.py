@@ -50,4 +50,11 @@ def load_fields(fields, t, run=None, tag="ApJ", transpose=True, **run_keys):
     return tuple(load_field(f, t, run, tag, transpose, **run_keys) for f in fields)
 
 
+def load_dataset(fp):
+    """First dataset of an HDF5 file, untransposed (energy and time histories such as EnTot_ApJ_.h5)."""
+    with h5py.File(fp, "r") as f:
+        key = list(f.keys())[0]        # get first dataset name, e.g. 'DS1'
+        return f[key][:]
+
+
 load = load_field          # short name
