@@ -22,7 +22,7 @@ shared/                code used by several projects (import from here, don't co
   detection.py         current-sheet detection
   thickness.py         thickness-method helpers (production versions)
   stats.py             statistics helpers
-  loading.py           reading CAMELIA output: load_field("Bx", t, run, tag="ApJ"), load_fields([...], t, run)
+  loading.py           reading CAMELIA output: load("Bx", t, beta_p=1, brms=0.24) or load("Bx", t, run_folder, tag="ApJ")
   filters.py           filtering module (used by experiments/FilteringCheckEmanuele)
   current_sheets_id_char_collisionless_turbulence.py   current-sheet identification/characterisation module
 results/               outputs, mirroring projects/ (git-ignored); where notebooks of one project would
@@ -64,8 +64,9 @@ Where things live is set in `shared/paths.py` and can be overridden per machine:
 
 | setting | environment variable | default | contents |
 |---|---|---|---|
-| `NAS_ROOT` | `PTA_NAS` | `/home/UNN/w24021992/NAS` | the workstation's NAS (e.g. `DATA/Brms_0.24`, `DATA/high_res`) |
-| `DATA_ROOT` | `PTA_DATA` | `NAS_ROOT/simulations_beta_scan` | the beta scan (`run_dir(beta_p, beta_e)`) |
+| `NAS_ROOT` | `PTA_NAS` | `/home/UNN/w24021992/NAS` | the workstation's NAS |
+| `SIM_ROOT` | `PTA_SIM` | `NAS_ROOT/DATA` | simulation outputs: `Brms_<B_rms>/beta_p_<beta_p>/beta_e_<beta_e>/`, `high_res`, `Particle` |
+| `DATA_ROOT` | `PTA_DATA` | `SIM_ROOT/Brms_0.24` | the main beta scan (`BRMS = 0.24`); `run_dir(beta_p, beta_e=1, brms=0.24)` gives one run |
 | `EXTERNAL_DATA_ROOT` | `PTA_EXTERNAL_DATA` | `/DATA` | Luca's QMUL runs, the Nancy runs, `DEVESH/` archives |
 | `RESULTS_ROOT` | `PTA_RESULTS` | `results/` in the repository | outputs |
 | `CACHE_ROOT` | `PTA_CACHE` | `cache/` in the repository | regenerable intermediate files |
