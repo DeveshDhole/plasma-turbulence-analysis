@@ -23,7 +23,9 @@ shared/                code used by several projects (import from here, don't co
   thickness.py         thickness-method helpers (production versions)
   stats.py             statistics helpers
   utils.py             small array helpers (index_of_just_smaller)
-  loading.py           reading CAMELIA output: load("Bx", t, beta_p=1, brms=0.24) or load("Bx", t, run_folder, tag="ApJ")
+  plotting.py          shared plot style: inferno (magnitudes), RdBu_r (signed fields), save_figure at 300 dpi, show_field
+  loading.py           reading CAMELIA output: load("Bx", t, beta_p=1, brms=0.24) or load("Bx", t, run_folder, tag="ApJ");
+                       output_times(run), grid_spacing(run)
   filters.py           filtering module (used by experiments/FilteringCheckEmanuele)
   current_sheets_id_char_collisionless_turbulence.py   current-sheet identification/characterisation module
 results/               outputs, mirroring projects/ (git-ignored); where notebooks of one project would
@@ -80,5 +82,10 @@ Where things live is set in `shared/paths.py` and can be overridden per machine:
 - Caches are disposable: anything that rerunning the code recreates can be deleted.
 - One copy of each function, in `shared/`; superseded versions go to `archive/` (or git history),
   not `_v2` / `_new` / `-Copy1`. A deliberately different version stays in its notebook, with a note in MOVES.md.
+- Every figure is saved, not just shown: `save_figure(fig, RESULTS, "descriptive_name")` writes it at 300 dpi to
+  `results/<project>/<notebook>/`; colour maps and line colours come from `shared/plotting.py` (`use_style()`).
+- Nothing tied to a particular run is typed into the analysis: the grid spacing comes from `grid_spacing(run)`, the
+  output times from `output_times(run)`, files are read with `load`; choices (which time, which scales) are named
+  settings at the top of the notebook.
 - Notebook outputs are stripped before committing (`nbstripout`).
 - Commit often with descriptive messages; tag paper versions (e.g. `paper1-submitted`).

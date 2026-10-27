@@ -121,3 +121,14 @@ def compute_spectra_at_time(base_path, t, dx, dy):
     kk = spectrum_Bx.kk  # assume same grid
 
     return kk, spectrum_B, spectrum_J, spectrum_D
+
+
+def current_density(Bx, By, Bz, dx, dy):
+    """J = curl B of a 2D field with x along axis 0: (Jx, Jy, Jz) = (dBz/dy, -dBz/dx, dBy/dx - dBx/dy)."""
+    return partial_y_fft(Bz, dy), -partial_x_fft(Bz, dx), partial_x_fft(By, dx) - partial_y_fft(Bx, dy)
+
+
+def summed_spectrum(components, dx, dy):
+    """Radial spectrum of a vector (or of some of its components): (k, sum of the components' spectra)."""
+    spectra = [compute_radial_spectrum(component, dx, dy) for component in components]
+    return spectra[0].kk, sum(spectrum.sp for spectrum in spectra)

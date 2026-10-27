@@ -35,6 +35,12 @@ def run_dir(beta_p, beta_e=1, brms=BRMS):
     return base / f"beta_p_{beta_p}" / f"beta_e_{beta_e}"
 
 
+def external_run(*parts):
+    """Folder of a run on the /DATA disk: external_run("ResistivityCheck", "2.5e-4_2048")
+    -> EXTERNAL_DATA_ROOT/DEVESH/ResistivityCheck/2.5e-4_2048"""
+    return EXTERNAL_DATA_ROOT.joinpath("DEVESH", *map(str, parts))
+
+
 def results_dir(*parts, create=True):
     """results_dir("paper1_methods", "cs_thickness_pooled_k") -> RESULTS_ROOT/paper1_methods/cs_thickness_pooled_k"""
     p = RESULTS_ROOT.joinpath(*map(str, parts))

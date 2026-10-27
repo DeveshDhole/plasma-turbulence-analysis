@@ -14,6 +14,7 @@ The notebooks all use the transposed array (DS1.T), so that axis 0 is x; these f
 from pathlib import Path
 
 import h5py
+import numpy as np
 
 from .paths import BRMS, run_dir
 
@@ -55,6 +56,32 @@ def load_dataset(fp):
     with h5py.File(fp, "r") as f:
         key = list(f.keys())[0]        # get first dataset name, e.g. 'DS1'
         return f[key][:]
+
+
+def load_history(quantity, run, tag="ApJ"):
+    """A time history written by CAMELIA, e.g. load_history("EnTot", run) reads <run>/EnTot_ApJ_.h5
+    (other quantities: "Time", "EnMa", ...)."""
+    return load_dataset(Path(run) / f"{quantity}_{tag}_.h5")
+
+
+BOX_LENGTH = 256.0         # d_p: side of the square box in all the CAMELIA runs here (2048 x 0.125, 4096 x 0.0625)
+
+
+def output_times(run, field="Bx", tag="ApJ"):
+    """Every output time present in the run folder, sorted (from the <field>_<tag>_t<t>.h5 file names)."""
+    times = sorted(int(p.stem.rsplit("_t", 1)[1]) for p in Path(run).glob(f"{field}_{tag}_t*.h5")
+                   if p.stem.rsplit("_t", 1)[1].isdigit())
+    if not times:
+        raise FileNotFoundError(f"no {field}_{tag}_t*.h5 files in {run}")
+    return np.array(times)
+
+
+def grid_spacing(run, field="Bx", tag="ApJ", box_length=BOX_LENGTH):
+    """(dx, dy) in d_p: the box length divided by the number of cells in the run's output files."""
+    first = Path(run) / f"{field}_{tag}_t{output_times(run, field, tag)[0]}.h5"
+    with h5py.File(first, "r") as f:
+        ny_cells, nx_cells = f["DS1"].shape      # as stored; load() transposes to (x, y)
+    return box_length / nx_cells, box_length / ny_cells
 
 
 load = load_field          # short name

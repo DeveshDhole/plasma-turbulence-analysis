@@ -185,6 +185,36 @@ functions are the production methods.
   `SingleCSAnalysisBeta16` and `MagRecEvent` differed from the shared one only by a hard-coded `Xi=2.0` (the `Xi`
   argument was ignored). They are removed; the live call in `SingleCSAnalysisBeta0.0625` and the commented-out calls
   now pass `Xi=2.0` to the shared function, which gives the same result.
+- Second round of duplicates moved to `shared/` (each shared version tested identical to every copy it replaced):
+  `shared/thickness.py`: `_m3_profile_and_fit`, `_m3_fwhm`, `_walk_to_mask_edge`, `thickness_m1`, `caliper_length`,
+  `crop_with_border`; `shared/detection.py`: `get_max_coords`; `shared/stats.py`: `fit_and_plot_pdf`, `avg_beta`;
+  `shared/utils.py`: `extract_timestep`; `shared/loading.py`: `load_dataset`; `shared/fields.py`:
+  `compute_spectra_at_time` (reads through `load_fields`). Notes on the few behaviours that had to become arguments:
+  the M3 settings (`max_len`, `subpix_step`, `margin_frac`, `min_half`) were notebook globals and are now arguments with
+  the values every notebook used (60, 0.5, 0.5, 6.0); `caliper_length` takes `connectivity=2` (both notebooks used 2);
+  `crop_with_border(region, return_offset=True)` gives the (crop, offset) version; `avg_beta(mask, P_scalar, B2)` takes
+  the arrays it used to read from the notebook; the one-value `_walk_m2` callers take `[0]` of the shared
+  `(distance, endpoint)`. Notebooks: KCutoff pipeline and its paper1 version, `SingleSheetVisual`,
+  `CSDetectionDistributionVsTime`, `CSDetectionMaxTurbulenceOneBeta`, `JEAnalysis`,
+  `CSDetectionMaxTurbulenceOneBetaLengthAnalysis`, both `PooledStatistics*`, `LocalBetaAnalysis`, `LocalRhoAnalysis`,
+  `EnergyfromComponents`, `KineticEnergyforDifferentResistivity`, `EnergyConservationCheck`, `EnergyPlots`,
+  `MagneticEnergyforDifferentResistivity`, `ResistivityCheck`, `AvgSpectrum`, `Spectrum`. Functions defined more than
+  once with identical code inside the same notebook (`_init_worker`, `filter_params`, local `load`, `find_sheets`,
+  `measure_snapshot`, `crop_box`, `draw_outline`, `draw_centrelines`, `centreline_length`, ...) keep only their first
+  definition (checked: no different version was active in between, and every use comes after a definition).
+- `ApJ2015` rebuilt (the previous version, with its saved figures of the old ApJ2015 run, is
+  `archive/apj2015/ApJ2015_old_run.ipynb`). It now analyses `Brms_0.24/beta_p_1/beta_e_1` (`run_dir(1, 1, 0.24)`);
+  every file is read with `load` (one orientation everywhere: before, 81 reads had no `.T` and 29 had one); `dx`, `dy`
+  come from `grid_spacing(RUN)` and the times from `output_times(RUN)` (all outputs, 0-300, instead of `range(0, 289)`);
+  T_p0 = beta_p/2, T_e = beta_e/2 and B_0 replace the typed 0.25, `/4` and `- 1`; every choice of time and scale is a
+  named setting at the top. The five passes over all times are one pass (also saved as `time_series.csv`); the six
+  hand-written spectrum loops (whose interpolation weights were swapped) use the shared `compute_radial_spectrum`;
+  duplicate cells (two identical div B maps, two B_perp rms plots) are merged; titles that did not match the quantity
+  (J_par and div B titled |B_perp|^2, |u| titled |u_perp|^2) are corrected. Every figure (25) and both movies are saved
+  to `results/apj2015/ApJ2015/`, figures at 300 dpi with the shared style. Tested end to end on a stand-in run.
+- New `shared/plotting.py`: inferno for magnitudes, RdBu_r for signed fields (or fields around a reference value such
+  as A_p = 1), a fixed line-colour cycle, `save_figure` (300 dpi) and `show_field` (x horizontal, axes in d_p).
+  `shared/loading.py` gained `output_times(run)` and `grid_spacing(run)` (box length 256 d_p / number of cells).
 - `projects/experiments/` (`FilteringCheck`, `FilteringCheckEmanuele`, `IterativeFilteringCheck`,
   `IterativeFilteringIndividualComponents`, `IterativeFilteringkcutoff`): identical copies of
   `compute_radial_spectrum`, `iterative_filtering1D`, `iterative_filtering3D` and `k_to_mask_length` replaced by imports;
@@ -297,3 +327,47 @@ Both versions existed at the top level (June) and in `QualityCheck/` (February).
 - Outputs of Luca's five runs (`results/cs_identification/LucaSimulationAnalysis/*/`, and the older copies in
   `/DATA/<run>/cs_analysis/`): detection was 10 x / 0.1 x; runs 2-5 also used the older histogram code. Their
   thickness histograms were a factor 2 too small and their thickness CSVs were in pixels, not d_i (see above).
+
+## Standards applied project by project (from 27 October 2026)
+
+Every converted notebook:
+- reads fields only through `shared.loading.load` (x along axis 0) and history files (`EnTot`, `EnMa`, `EnKi1`, `Time`)
+  through `load_history`; no direct `h5py` reads;
+- gets its runs from `run_dir` (beta scan, B_rms as `BRMS`), `external_run` (the /DATA disk) or `shared/runs.py`, its
+  grid spacing from `grid_spacing(run)` and its times from `output_times(run)`; worker counts follow the machine;
+- keeps its choices (snapshot times, plot ranges, thresholds) as named settings near the top;
+- saves every figure with `save_figure` (300 dpi) in `results/<project>/<notebook>/`, colours from `shared/plotting.py`
+  (inferno for magnitudes, RdBu_r for signed fields, gray for masks, matplotlib's ten line colours).
+
+Added to `shared/`: `loading.load_history`, `paths.external_run`, `fields.current_density`, `fields.summed_spectrum`,
+`runs.py` (`RESISTIVITY_SCAN`, `PARTICLES_PER_CELL_SCAN`, `EXTREME_BETA_SCAN`), `plotting.MASK_CMAP` and
+`show_field(..., mask=True)`.
+
+### `quality_checks` (all 16 notebooks done)
+
+Corrections beyond the standards above:
+- `SNR`: wrote its figures into `plots/` inside each data run on the NAS; now `results/quality_checks/SNR/<run>/`.
+  Its last cell overwrote the first cell's figures (now separate names) and labelled a t = 0 spectrum t = 1. Its own
+  `compute_radial_spectrum` replaced by the shared one (identical up to the Nyquist wavenumber; same in
+  `SpectrumCompareBeta`).
+- `ResistivityCheck`: J was differentiated with dx = 0.125 but its spectrum used dx = 0.0625, and the fields were
+  read without `.T` (so the x derivative acted along y). Both now use the run's own grid spacing.
+- `ReconnectionTime`: a comment said the peak prominence was 10 % while the code used 1 %; the last spectrum was
+  titled perpendicular but sums all three J components.
+- `EnergyfromComponents`, `KineticEnergyforDifferentResistivity`: 16777216 (4096 squared) replaced by the data's own
+  number of cells; the 0.75 added to the energy is now `1.5 * T_E` with `T_E = BETA_E / 2`; six figures that were
+  only shown are now saved; two cells saved to the same `TotalEnergyComparison.png` (now separate names). A
+  commented-out block copied from the old ApJ2015 notebook (temperature anisotropy, unrelated) was removed from
+  `EnergyfromComponents`.
+- `AvgSpectrum`: the side-by-side comparison looked for its two PNGs in the notebook folder, where they never were;
+  it now reads them from its results folder and says which are missing.
+- `SpectrumAnimation`: its own `compute_spectra_at_time` (B and u spectra) had the same name as the shared function
+  (B, J and n spectra); renamed `B_and_u_spectra_at`.
+- `AvgSpectrum`, `Spectrum`: slope guides are drawn along the spectra (`SLOPE_GUIDES`: -5/3 and -3 on B, -1 on J,
+  -2.8 on n) instead of typed index ranges and amplitudes.
+- `SimulationHeatMap`: viridis -> inferno, 150 -> 300 dpi. To check: its docstring says the table rows are beta_p,
+  but the comments in the tables label the rows beta_e; the plot puts rows on the x-axis (beta_p).
+- `DensitySpectrum` saved a density-only figure as `JBD_Spectrum`.
+
+All `quality_checks` figures now have new names (e.g. `J_rms_vs_time.png`, `density_spectra_t1_t200.png`); the old
+files in `results/quality_checks/` can be deleted once the notebooks have been rerun.
