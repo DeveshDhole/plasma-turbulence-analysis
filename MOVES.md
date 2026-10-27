@@ -371,3 +371,16 @@ Corrections beyond the standards above:
 
 All `quality_checks` figures now have new names (e.g. `J_rms_vs_time.png`, `density_spectra_t1_t200.png`); the old
 files in `results/quality_checks/` can be deleted once the notebooks have been rerun.
+
+### `apj2015/ApJ2015` (27 October 2026)
+
+- B and the velocity u are filtered with `iterative_filtering1DWithKCutOff` before plotting (settings `FILTER_B`,
+  `FILTER_U`, `K_CUTOFF = 14.12/3`, `XI = 1.6`, as in Paper 1): the J, |B_perp|^2, |u| and omega_par maps, the B_y
+  increment PDFs, the time series and the |B_perp|^2 movie. The spectra and div B stay on the raw fields.
+- The loops over output times run in parallel (`shared/parallel.py`, `N_WORKERS`, one thread per process): one pass
+  computes the time series and draws the frames of both movies, which ffmpeg then joins (frames in
+  `cache/apj2015/ApJ2015/`). The compensated spectra are also computed in parallel.
+- With `FILTER_B = FILTER_U = False` the time series are identical to the previous version of the notebook.
+- `shared/filtering.py`: `iterative_filtering1DWithKCutOff` takes `dx` (default box length / number of cells, which
+  is the 0.0625 it assumed before for the 4096^2 runs). `k_to_mask_length` still defaults to dx = 0.0625;
+  `paper1_methods/JBandPass` relies on that default.

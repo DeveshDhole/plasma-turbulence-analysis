@@ -5,9 +5,12 @@ k_to_mask_length work on machines without fifpy.
 
 Functions copied verbatim from the Paper 1 pipeline notebook
 (CSDetectionMaxTurbulenceFullPipelineWithKCutoff_Beta1.ipynb); behaviour unchanged.
-iterative_filtering1DWithKCutOff is the Paper 1 version: the mask length comes from k.
+iterative_filtering1DWithKCutOff is the Paper 1 version: the mask length comes from k. It takes the grid
+spacing dx; by default dx = box length / number of cells (0.0625 for the 4096^2 runs, the value it used before).
 """
 import numpy as np
+
+from .loading import BOX_LENGTH
 
 
 def k_to_mask_length(k, dx=0.0625, angular=True, prefactor=1.0, min_len=3):
@@ -38,10 +41,14 @@ def iterative_filtering1D(field, index, Xi=1.6):
     return filtered_signal
 
 
-def iterative_filtering1DWithKCutOff(field, Xi=1.6, k=10):
+def iterative_filtering1DWithKCutOff(field, Xi=1.6, k=10, dx=None):
+    """field (2D) with the wavenumbers above k removed: FIF with one IMF whose mask length is set by k.
+    dx: grid spacing in the units of 1/k (d_p); default box length / number of cells."""
     import fifpy                     # imported here so the rest of the module works without it
+    if dx is None:
+        dx = BOX_LENGTH / field.shape[0]
     fif = fifpy.MIF(NIMFs=1, alpha=30, Xi=Xi)
-    mask_length = k_to_mask_length(k)
+    mask_length = k_to_mask_length(k, dx=dx)
     fif.run(field, M=[mask_length])          # one mask length per IMF (sequence, not scalar)
     print(fif.IMC.shape)              # sanity-check the component layout
     return np.sum(fif.IMC[1:], axis=0)
