@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plasma-turbulence-analysis"          # "pta" is taken on PyPI; the package is still imported as pta
+version = "0.1.0"
+description = "Analysis of 2D kinetic plasma-turbulence simulations: fields, spectra, filtering and current sheets"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "h5py",
+    "matplotlib",
+    "scikit-image",                           # pta.sheets.quantile_mask
+    "tomli; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+filtering = ["fifpy"]                         # iterative filtering (pta.filtering.iterative_filtering*)
+parallel = ["threadpoolctl"]                  # one numpy/FFT thread per worker process
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

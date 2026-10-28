@@ -58,10 +58,11 @@ def lognorm_mode(shape, scale):
     return scale * np.exp(-shape**2)
 
 
-def fit_and_plot_pdf(ax, x_di, title, color=None, bins=30, ylabel=False, xmax=None):
-    """Per-method PDF panel: histogram + lognormal fit + median. Returns a dict of statistics.
+def fit_and_plot_pdf(ax, x_di, title, color=None, bins=30, ylabel=False, xmax=None, fit_loc=False, mark="median"):
+    """Per-method PDF panel: histogram + lognormal fit + a marked value. Returns a dict of statistics.
     color (histogram and fit) and xmax (shared x-limit) are optional; without them the panel is
-    exactly the original production version."""
+    exactly the original production version. fit_loc=True also fits the lognormal's loc (otherwise 0);
+    mark="mode" marks the fit's peak instead of its median."""
     x = np.asarray(x_di, dtype=float)
     x = x[np.isfinite(x) & (x > 0)]
     ax.set_xlabel(r"$d_i$")
@@ -75,19 +76,27 @@ def fit_and_plot_pdf(ax, x_di, title, color=None, bins=30, ylabel=False, xmax=No
             ax.set_xlim(0, xmax)
         return {"n": int(x.size), "median_lognorm": np.nan, "sigma_lognorm": np.nan,
                 "mean": np.nan, "median_emp": np.nan}
-    shape, loc, scale = lognorm.fit(x, floc=0)
+    shape, loc, scale = lognorm.fit(x) if fit_loc else lognorm.fit(x, floc=0)
     xs_fit = np.linspace(0, xmax if xmax is not None else x.max(), 400)
     colour = {} if color is None else {"color": color}
     ax.hist(x, bins=bins, density=True, alpha=0.4, label="Histogram", **colour)
     ax.plot(xs_fit, lognorm.pdf(xs_fit, shape, loc, scale), label="Log-normal fit", **colour)
-    ax.axvline(scale, color="k", ls="--", lw=1.5, label=f"Median = {scale:.3f}")
+    mode = loc + scale * np.exp(-shape**2)
+    if mark == "mode":
+        ax.axvline(mode, color="k", ls="--", lw=1.5, label=f"Mode = {mode:.3f}")
+        ax.scatter([mode], [lognorm.pdf(mode, shape, loc, scale)], color="k", zorder=3)
+    else:
+        ax.axvline(loc + scale, color="k", ls="--", lw=1.5, label=f"Median = {loc + scale:.3f}")
     ax.set_title(f"{title}  (N={x.size})")
     ax.legend()
     if xmax is not None:
         ax.set_xlim(0, xmax)
-    return {"n": int(x.size), "median_lognorm": float(scale),
-            "sigma_lognorm": float(shape), "mean": float(x.mean()),
-            "median_emp": float(np.median(x))}
+    statistics = {"n": int(x.size), "median_lognorm": float(loc + scale),
+                  "sigma_lognorm": float(shape), "mean": float(x.mean()),
+                  "median_emp": float(np.median(x))}
+    if fit_loc or mark == "mode":
+        statistics.update(mode_lognorm=float(mode), loc_lognorm=float(loc))
+    return statistics
 
 
 def avg_beta(region_mask, P_scalar, B2):

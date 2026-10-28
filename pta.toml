@@ -1,0 +1,44 @@
+# Where this project's simulation data, results and caches are (read by pta.config).
+# An environment variable PTA_<NAME> overrides the entry <name>, e.g. PTA_NAS=/mnt/nas or PTA_RESULTS=/tmp/results.
+
+[paths]
+nas = "/home/UNN/w24021992/NAS"           # the workstation's NAS
+simulations = "{nas}/DATA"                 # simulation outputs on the NAS; the beta scans are Brms_<B_rms>/beta_p_*/beta_e_*
+external_data = "/DATA"                    # the /DATA disk with collaborators' simulations (Luca's QMUL runs, the Nancy runs)
+devesh = "{external_data}/DEVESH"          # our runs on the /DATA disk
+results = "results"                        # relative to this file's folder
+cache = "cache"
+
+[runs]                                     # run folders by name: pta.config.run("beta_scan", beta_p=1)
+beta_scan = "{simulations}/Brms_{brms}/beta_p_{beta_p}/beta_e_{beta_e}"
+resistivity = "{devesh}/ResistivityCheck/{name}"
+extreme_beta = "{devesh}/ExtremeBetaSimulations/{name}"
+
+[run_defaults.beta_scan]
+brms = 0.24
+beta_e = 1
+
+[scans.resistivity]                        # pta.config.scan("resistivity") -> [(run, label), ...]
+layout = "resistivity"
+runs = [
+    { name = "0.625e-4", label = "η = 0.625×10⁻⁴" },
+    { name = "1.25e-4", label = "η = 1.25×10⁻⁴" },
+    { name = "2.5e-4_2048", label = "η = 2.5×10⁻⁴" },
+    { name = "5e-4", label = "η = 5×10⁻⁴" },
+]
+
+[scans.particles_per_cell]                 # the eta = 2.5e-4 run with different numbers of particles per cell
+layout = "resistivity"
+runs = [
+    { name = "2.5e-4_256", label = "256 ppc" },
+    { name = "2.5e-4_512", label = "512 ppc" },
+    { name = "2.5e-4_1024", label = "1024 ppc" },
+    { name = "2.5e-4_2048", label = "2048 ppc" },
+]
+
+[scans.extreme_beta]
+layout = "extreme_beta"
+runs = [
+    { name = "16", label = "16" },
+    { name = "0.0625", label = "0.0625" },
+]

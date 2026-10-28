@@ -384,3 +384,50 @@ files in `results/quality_checks/` can be deleted once the notebooks have been r
 - `shared/filtering.py`: `iterative_filtering1DWithKCutOff` takes `dx` (default box length / number of cells, which
   is the 0.0625 it assumed before for the 4096^2 runs). `k_to_mask_length` still defaults to dx = 0.0625;
   `paper1_methods/JBandPass` relies on that default.
+
+## The pta package (28 October 2026)
+
+`shared/` became the installable package `pta` in `src/pta/` (`pip install -e .`; see README):
+
+| was | now |
+|---|---|
+| `shared/fields.py` | `pta/fields.py` (derivatives, `current_density`) and `pta/spectra.py` (`compute_radial_spectrum`, `summed_spectrum`, `compute_spectra_at_time`) |
+| `shared/loading.py` | `pta/run.py`: the `Run` class, plus `load`, `load_fields`, `load_history`, `output_times`, `grid_spacing` for a folder |
+| `shared/paths.py`, `shared/runs.py` | `pta/config.py` and `pta.toml` (paths, run layouts, scans); `PTA_SIM` is now `PTA_SIMULATIONS` |
+| `shared/detection.py`, `shared/thickness.py` | `pta/sheets/detection.py`, `pta/sheets/thickness.py` |
+| `shared/stats.py` | `pta/statistics.py` |
+| `shared/filtering.py`, `parallel.py`, `plotting.py`, `utils.py` | `pta/` (same names) |
+
+- The replaced modules are in `archive/shared/`. `shared/` now only serves the old names from pta, so notebooks
+  not yet moved work unchanged; `shared/filters.py` and `shared/current_sheets_id_char_collisionless_turbulence.py`
+  stay there until `experiments` and `cs_identification` are moved.
+- `compute_radial_spectrum` adds up the modes with `np.bincount` instead of a Python loop over every grid point:
+  the same result to 1e-12, about 4 times faster.
+- `compute_spectra_at_time` takes a run (a `Run` or a folder), reads dx and dy from it by default, and uses dy for
+  the y derivatives (it used dx; the same on the square grids here).
+- `tests/test_pta.py`: 9 tests on small synthetic runs (reading, other file layouts, parallel map, spectra against
+  the old loop, derivatives, pta.toml, filters, sheet detection).
+- Checked: the 16 `quality_checks` notebooks run unchanged through `shared/`, and the `ApJ2015` time series are
+  identical with the old code and with pta.
+
+### `jpar_jperp` moved to pta (28 October 2026)
+
+- `Jpar_CSDetectionBeta0.0625`, `Jpar_CSDetectionBeta1`, `Jpar_CSDetectionBeta16` and
+  `Jpar_CSDetectionMethod5_Beta0.0625` (the same analysis copied run by run, and twice within each notebook) ->
+  one notebook, `JparJperpCSDetection`, with a table of the settings that differed (Gaussian filter width 0.2 or
+  0.3 of the grid, J_par^2 quantile 0.8 or 0.9). The old notebooks are in `archive/jpar_jperp_cs_detection/`.
+  The beta = 0.0625 extras (spectra, J^2 and |J_par|/|J| maps) and the Method 5 peak flooding now run for every beta.
+- Corrected there: four different figures were saved as `Jpar_with_CS_contours_beta0.0625.png` (only the last
+  survived); the maps had their axes in cells but labelled in d_p; pixels were turned into d_i as `/ 16`, right only
+  for dx = 0.0625; dx and dy were swapped in two derivatives; Method 5 took the maxima of its |J_perp| sheets from
+  J_par^2 and saved their thickness PDF as `Jpar_PDF`; a density snapshot was read and never used.
+- Checked: on the same data the new notebook finds the same masks and thicknesses as `Jpar_CSDetectionBeta1`, and
+  its J_par^2 and J_perp^2 are bit-identical once the old notebook is given the run's true dx.
+- `Kdiss`: the same block three times (one per beta, a pool of 128 typed in) -> one function of the time, mapped
+  over every output time with `run.map`; an unused absolute path removed.
+- `JparJperpSpectrum`: the spectra come from `pta.spectra.parallel_perpendicular_spectra`.
+- Added to pta (with tests): `fields.parallel_component`, `fields.parallel_perpendicular_squared`,
+  `fields.resistive_dissipation_wavenumber`, `spectra.parallel_perpendicular_spectra`, `sheets.quantile_mask`,
+  `sheets.sheets_to_mask`, `sheets.region_thicknesses`, `plotting.outline_mask`, `plotting.mark_cells`;
+  `detect_current_sheets` takes `global_threshold` and `local_fraction` (defaults unchanged); `fit_and_plot_pdf`
+  takes `fit_loc` and `mark` (defaults unchanged). scikit-image is now a dependency.

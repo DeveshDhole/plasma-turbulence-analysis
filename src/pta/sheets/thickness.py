@@ -157,3 +157,11 @@ def crop_with_border(region, return_offset=False):
     if return_offset:
         return cropped, np.array([xs.min() - 2, ys.min() - 2])
     return cropped
+
+
+def region_thicknesses(mask, step=1.0, connectivity=2):
+    """thickness_m1 (diameter of the largest inscribed circle, times step) of every connected region of a mask;
+    connectivity 2 joins diagonal neighbours, 1 does not."""
+    structure = ndi.generate_binary_structure(2, connectivity)
+    labeled, count = ndi.label(mask, structure=structure)
+    return np.array([thickness_m1(labeled == index, step=step) for index in range(1, count + 1)])

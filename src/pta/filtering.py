@@ -10,7 +10,7 @@ spacing dx; by default dx = box length / number of cells (0.0625 for the 4096^2 
 """
 import numpy as np
 
-from .loading import BOX_LENGTH
+from .run import BOX_LENGTH
 
 
 def k_to_mask_length(k, dx=0.0625, angular=True, prefactor=1.0, min_len=3):

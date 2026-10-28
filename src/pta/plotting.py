@@ -1,13 +1,13 @@
 """One plotting style for every notebook: two colour maps, one line-colour cycle, figures saved at 300 dpi.
 
-    from shared.plotting import use_style, save_figure, show_field
+    from pta.plotting import use_style, save_figure, show_field
     use_style()                                   # once, after the imports
     fig, ax = plt.subplots()
     show_field(ax, J_par, dx, dy, centre=0, label=r"$J_\\parallel$")   # signed field: RdBu_r, symmetric limits
     show_field(ax, J_par**2, dx, dy, label=r"$J_\\parallel^2$")         # magnitude: inferno
     save_figure(fig, RESULTS, "J_par_t200")                         # RESULTS/J_par_t200.png at 300 dpi
 
-Fields are expected with x along axis 0 (as shared.loading.load returns them); they are drawn with x
+Fields are expected with x along axis 0 (as pta.Run.load returns them); they are drawn with x
 horizontal, y vertical and the axes in d_p.
 """
 from pathlib import Path
@@ -85,3 +85,17 @@ def add_slope_guide(ax, k, spectrum, slope, k_min, k_max, offset=2.0, label=None
     if label is not None:
         ax.text(k_line[len(k_line) // 2], line[len(k_line) // 2] * offset, label, fontsize=11)
     return k_line, line
+
+
+def outline_mask(ax, mask, dx, dy, color="yellow", linewidth=1):
+    """Outline the regions of a mask (x along axis 0) on a map drawn by show_field (axes in d_p)."""
+    nx, ny = mask.shape
+    x, y = (np.arange(nx) + 0.5) * dx, (np.arange(ny) + 0.5) * dy
+    return ax.contour(x, y, np.asarray(mask, dtype=float).T, levels=[0.5], colors=color, linewidths=linewidth)
+
+
+def mark_cells(ax, cells, dx, dy, marker="x", color="yellow", markersize=10, markeredgewidth=1.5):
+    """Mark grid cells, given as (i, j) indices, on a map drawn by show_field (axes in d_p)."""
+    for i, j in cells:
+        ax.plot((i + 0.5) * dx, (j + 0.5) * dy, marker=marker, color=color, markersize=markersize,
+                markeredgewidth=markeredgewidth, linestyle="none")
