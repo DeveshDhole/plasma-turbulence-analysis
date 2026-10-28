@@ -7,10 +7,10 @@
     B_rms = run.map(lambda time: run.load("Bx", time).std())   # the same analysis at every output time, in parallel
 
 Modules: run (simulation outputs), config (where data and results are: pta.toml), fields (derivatives,
-current density), spectra, filtering, sheets (current-sheet detection and measurement), statistics,
-parallel and plotting.
+current density), spectra, filtering, sheets (current-sheet detection, measurement and pooled thickness
+statistics), statistics, parallel, plotting and animation.
 """
 __version__ = "0.1.0"
 
 from .run import Run
-from . import config, fields, filtering, parallel, plotting, sheets, spectra, statistics, utils
+from . import animation, config, fields, filtering, parallel, plotting, sheets, spectra, statistics, utils

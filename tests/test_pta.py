@@ -212,9 +212,8 @@ def test_pdf_panel_options():
 
 
 def test_cuts_across_a_sheet_match_the_single_sheet_notebooks():
-    from collections import deque
     from scipy.ndimage import map_coordinates
-    from pta.sheets import descent_direction, fwhm_nearest_samples, grow_region, line_profile, width_along
+    from pta.sheets import descent_direction, fwhm_nearest_samples, line_profile, width_along
     nx = ny = 120
     x, y = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
     J2 = np.exp(-((x - 60 + 0.3 * (y - 60))**2) / 20.0) * np.exp(-((y - 60)**2) / 900.0) + 0.002 * np.random.default_rng(9).random((nx, ny))
@@ -230,20 +229,8 @@ def test_cuts_across_a_sheet_match_the_single_sheet_notebooks():
     # profile along the cut
     s, profile = line_profile(J2, cell, direction, 30)
     assert np.array_equal(profile, map_coordinates(J2, [cell[0] + s * direction[0], cell[1] + s * direction[1]], order=1))
-    # flood fill: the notebooks grew the region with a queue
-    threshold = 0.1 * J2[cell]
-    region = np.zeros_like(J2, dtype=bool); visited = np.zeros_like(J2, dtype=bool); queue = deque([cell])
-    while queue:
-        i, j = queue.popleft()
-        if visited[i, j]: continue
-        visited[i, j] = True
-        if J2[i, j] >= threshold:
-            region[i, j] = True
-            for di, dj in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                if 0 <= i + di < nx and 0 <= j + dj < ny and not visited[i + di, j + dj]:
-                    queue.append((i + di, j + dj))
-    assert np.array_equal(grow_region(J2, cell, threshold), region)
-    assert not grow_region(J2, (5, 5), threshold).any()
+    # a region to walk across: the sheet's own cells
+    region = J2 >= 0.1 * J2[cell]
     # width across the region: the notebooks walked forward and backward
     def walk(sign):
         xf, yf = float(cell[0]), float(cell[1])
@@ -270,3 +257,113 @@ def test_harris_fit_recovers_a_harris_sheet():
     assert abs(magnitude["delta"] - 6.0) < 0.2 and abs(magnitude["s0"] + 2.0) < 0.2
     centred = fit_harris(s, harris_profile(s, 0.3, 0.0, 3.0, 0.0) + noise, centred=True)
     assert centred["s0"] == 0.0 and abs(centred["delta"] - 3.0) < 0.1
+
+
+def synthetic_sheet_run(folder, n=192, times=(0, 5), nsheets=3):
+    """A run whose By reverses across a few current sheets, so detection finds them."""
+    folder.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(11)
+    x, y = np.meshgrid(np.arange(n, dtype=float), np.arange(n, dtype=float), indexing="ij")
+
+    def profile(coordinate, centres, widths):
+        out = np.full_like(coordinate, -1.0)
+        for number, (centre, width) in enumerate(zip(centres, widths)):
+            sign = 1 if number % 2 == 0 else -1
+            for shift in (-n, 0, n):
+                out += sign * (np.tanh((coordinate - centre - shift) / width) + 1)
+        return out
+
+    for time in times:
+        By = 0.3 * profile(x + 5 * np.sin(2 * np.pi * y / n), [40, 110, 160][:nsheets], [4, 6, 5][:nsheets])
+        Bx = 0.3 * profile(y, [70], [5])
+        for name, data in (("Bx", Bx), ("By", By), ("Bz", 1 + 0 * x)):
+            with h5py.File(folder / f"{name}_ApJ_t{time}.h5", "w") as f:
+                f.create_dataset("DS1", data=(data + 0.004 * rng.normal(size=data.shape)).T)
+    return pta.Run(folder, box_length=n / 16)                      # dx = 1/16 d_p, as in the production runs
+
+
+def test_pooled_thickness_matches_the_production_pipeline(tmp_path, monkeypatch):
+    from scipy import ndimage as ndi
+    from skimage import measure, morphology
+    from pta.fields import partial_x_fft, partial_y_fft
+    from pta.sheets import detect_current_sheets, pooled_thickness, snapshot_thickness
+    from pta.sheets.thickness import _m3_profile_and_fit, _walk_m2
+    import matplotlib
+    matplotlib.use("Agg")
+
+    monkeypatch.setenv("PTA_RESULTS", str(tmp_path / "results"))
+    monkeypatch.setenv("PTA_CACHE", str(tmp_path / "cache"))
+    config.reload()
+    run = synthetic_sheet_run(tmp_path / "run")
+
+    # the production pipeline, inline, for one snapshot
+    Bx, By = run.load_many(["Bx", "By"], 0)
+    J = np.abs(partial_x_fft(By, run.dx) - partial_y_fft(Bx, run.dy))
+    mask = np.zeros_like(J)
+    for sheet in detect_current_sheets(J):
+        for i, j in sheet:
+            mask[i, j] = 1
+    disk = morphology.disk(1)
+    mask = morphology.closing(morphology.opening(mask, disk), disk)
+    try:
+        cleaned = morphology.remove_small_objects(mask.astype(bool), max_size=499)
+    except TypeError:
+        cleaned = morphology.remove_small_objects(mask.astype(bool), min_size=500)
+    labelled = measure.label(cleaned, connectivity=2)
+    gx, gy = np.gradient(ndi.gaussian_filter(J, sigma=3))
+    expected = {"m1": [], "m2": [], "m3": []}
+    for index in range(1, int(labelled.max()) + 1):
+        region = labelled == index
+        rows, columns = np.where(region)
+        peak = int(np.argmax(J[region]))
+        i, j = int(rows[peak]), int(columns[peak])
+        expected["m1"].append(2 * float(ndi.distance_transform_edt(region).max()))
+        gradient = np.array([gx[i, j], gy[i, j]])
+        direction = (0.0, 0.0) if np.allclose(gradient, 0) else tuple(map(float, -gradient / np.linalg.norm(gradient)))
+        expected["m2"].append(_walk_m2(cleaned, i, j, *direction)[0]
+                              + _walk_m2(cleaned, i, j, -direction[0], -direction[1])[0])
+        expected["m3"].append(_m3_profile_and_fit(J, cleaned, i, j, *direction)[3])
+    assert int(labelled.max()) >= 2
+
+    got = snapshot_thickness(run, 0, k=None)
+    assert got["n_sheets"] == int(labelled.max())
+    for method, values in expected.items():
+        values = np.asarray(values, dtype=float)
+        if method == "m2":
+            values = values[values > 0]
+        if method == "m3":
+            values = values[np.isfinite(values) & (np.asarray(values) > 0)]
+        assert np.allclose(np.sort(values * run.dx), np.sort(got[method])), method
+
+    # pooling over several snapshots: one figure, one panel per method, and a lognormal fit per method
+    run = synthetic_sheet_run(tmp_path / "run", times=range(0, 25, 5))       # enough sheets to fit
+    pooled = pooled_thickness(run=run, times=list(range(0, 25, 5)), k=None, workers=2, bootstrap=50)
+    assert pooled.thickness["m1"].size == sum(len(s) for s in pooled.per_time["m1"].values())
+    assert len(pooled.figure.axes) >= 3
+    for row in pooled.statistics:
+        assert row["n"] >= 5                                      # fewer than 5 sheets: fit_and_plot_pdf returns NaN
+        assert row["median_lognorm"] > 0 and row["ci_lo"] <= row["median_lognorm"] <= row["ci_hi"]
+        assert 0.5 < row["median_lognorm"] / np.median(pooled.thickness[row["method"]]) < 2
+    figure_path, array_path = pooled.save(config.results_dir("pooling_test"))
+    assert figure_path.exists() and array_path.exists()
+    stored = np.load(array_path)
+    assert np.array_equal(stored["m3_d_p"], pooled.thickness["m3"])
+
+
+def test_animation_writes_a_movie_of_every_frame(tmp_path, monkeypatch):
+    import shutil
+    import matplotlib
+    matplotlib.use("Agg")
+    if shutil.which("ffmpeg") is None:
+        pytest.skip("ffmpeg not installed")
+    from pta import animation
+
+    monkeypatch.setenv("PTA_RESULTS", str(tmp_path / "results"))
+    config.reload()
+    run = synthetic_sheet_run(tmp_path / "run", n=64, times=(0, 5, 10))
+    field_movie = animation.animate_field(run, lambda time: run.load("Bx", time), tmp_path / "field.mp4",
+                                          centre=0, workers=2)
+    line_movie = animation.animate_lines(np.arange(5), lambda time: np.arange(5) * (1 + time),
+                                         tmp_path / "lines.mp4", frames=[0, 5, 10], labels=["a"])
+    assert field_movie.exists() and field_movie.stat().st_size > 0
+    assert line_movie.exists() and line_movie.stat().st_size > 0

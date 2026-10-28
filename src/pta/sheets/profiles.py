@@ -2,8 +2,7 @@
 
     direction = descent_direction(J2, cell)              # steepest descent of J^2 at the sheet's maximum
     s, values = line_profile(J2, cell, direction, 70)   # J^2 interpolated along the cut, s in cells
-    width, forward, backward = width_along(mask, cell, direction)    # across a mask (thickness methods 2, 4, 5)
-    region = grow_region(J2, cell, threshold)            # the connected region above a threshold around the cell
+    width, forward, backward = width_along(mask, cell, direction)    # across a mask (thickness method 2)
     k, values, parameters, fwhm = fwhm_nearest_samples(J2, cell, direction)   # Gaussian FWHM (method 3)
     fit = fit_harris(s, B_profile)                        # Harris sheet B0 tanh((s - s0) / delta) + C
 
@@ -40,18 +39,6 @@ def width_along(mask, cell, direction, step=1, max_steps=1000):
     forward = _walk_m2(mask, cell[0], cell[1], direction[0], direction[1], step, max_steps)[0]
     backward = _walk_m2(mask, cell[0], cell[1], -direction[0], -direction[1], step, max_steps)[0]
     return forward + backward, forward, backward
-
-
-def grow_region(field, cell, threshold, smoothing_radius=None):
-    """The 4-connected region where field >= threshold that contains `cell` (empty if the cell itself is below
-    the threshold): a flood fill from the cell. smoothing_radius: open and close it with a disk of that many cells."""
-    labels, _ = ndi.label(field >= threshold)
-    region = labels == labels[cell] if labels[cell] else np.zeros(field.shape, dtype=bool)
-    if smoothing_radius:
-        from skimage import morphology           # imported here so the rest of pta works without scikit-image
-        disk = morphology.disk(smoothing_radius)
-        region = morphology.closing(morphology.opening(region, disk), disk)
-    return region
 
 
 def fwhm_nearest_samples(field, cell, direction, half_length=60):

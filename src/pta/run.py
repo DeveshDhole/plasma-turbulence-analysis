@@ -32,15 +32,17 @@ class Run:
     history_pattern : name of a time-history file; {quantity} and {tag} are filled in
     dataset         : dataset inside each field file (None: the first one)
     box_length      : side of the box in d_p, one number or (Lx, Ly); sets dx and dy
+    spacing         : grid spacing in d_p, one number or (dx, dy); overrides box_length
     transpose       : the files store arrays as (y, x); True returns them with x along axis 0
     reference_field : the field whose files give the output times and the grid
     """
 
     def __init__(self, path, tag="ApJ", pattern="{field}_{tag}_t{time}.h5", history_pattern="{quantity}_{tag}_.h5",
-                 dataset="DS1", box_length=BOX_LENGTH, transpose=True, reference_field="Bx"):
+                 dataset="DS1", box_length=BOX_LENGTH, spacing=None, transpose=True, reference_field="Bx"):
         self.path = Path(path)
         self.tag, self.pattern, self.history_pattern = tag, pattern, history_pattern
         self.dataset, self.box_length, self.transpose = dataset, box_length, transpose
+        self.spacing = spacing
         self.reference_field = reference_field
         self._times, self._shape = {}, None
 
@@ -94,14 +96,22 @@ class Run:
 
     @property
     def dx(self):
+        if self.spacing is not None:
+            return self._pair(self.spacing)[0]
         return self._box_lengths()[0] / self.shape[0]
 
     @property
     def dy(self):
+        if self.spacing is not None:
+            return self._pair(self.spacing)[1]
         return self._box_lengths()[1] / self.shape[1]
 
+    @staticmethod
+    def _pair(value):
+        return tuple(value) if np.ndim(value) else (value, value)
+
     def _box_lengths(self):
-        return tuple(self.box_length) if np.ndim(self.box_length) else (self.box_length, self.box_length)
+        return self._pair(self.box_length)
 
     # ---- data ----
     def _dataset(self, handle):
