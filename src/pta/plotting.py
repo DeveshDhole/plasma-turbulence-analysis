@@ -50,13 +50,15 @@ def colour_limits(field, centre=None, percentile=COLOUR_LIMIT_PERCENTILE):
     return centre - half_range, centre + half_range
 
 
-def show_field(ax, field, dx, dy, centre=None, limits=None, label=None, colorbar=True, axis_labels=True, mask=False):
+def show_field(ax, field, dx, dy, centre=None, limits=None, label=None, colorbar=True, axis_labels=True, mask=False,
+               corner=(0.0, 0.0)):
     """Draw a 2D field (x along axis 0) on ax with x horizontal and the axes in d_p.
 
     centre : None for a magnitude (MAGNITUDE_CMAP); a value (0 for signed fields, 1 for A_p) for a field
              that varies around it (SIGNED_CMAP, limits symmetric about it)
     limits : (vmin, vmax) to fix the colour range; by default taken from the data (see colour_limits)
     mask   : True for a binary mask (MASK_CMAP, range 0-1)
+    corner : (x, y) in d_p of the field's first cell, for a patch cut out of a larger box
     """
     nx, ny = field.shape
     if mask:
@@ -64,7 +66,8 @@ def show_field(ax, field, dx, dy, centre=None, limits=None, label=None, colorbar
     else:
         cmap = MAGNITUDE_CMAP if centre is None else SIGNED_CMAP
         vmin, vmax = limits if limits is not None else colour_limits(field, centre)
-    image = ax.imshow(field.T, origin="lower", extent=[0, nx * dx, 0, ny * dy], cmap=cmap, vmin=vmin, vmax=vmax)
+    x0, y0 = corner
+    image = ax.imshow(field.T, origin="lower", extent=[x0, x0 + nx * dx, y0, y0 + ny * dy], cmap=cmap, vmin=vmin, vmax=vmax)
     if axis_labels:
         ax.set_xlabel(r"$x/d_p$")
         ax.set_ylabel(r"$y/d_p$")

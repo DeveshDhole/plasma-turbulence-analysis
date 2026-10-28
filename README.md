@@ -58,8 +58,8 @@ python -m pytest tests
 ```
 
 The install name is `plasma-turbulence-analysis` (`pta` is taken on PyPI); the package is imported as `pta`.
-The extras add fifpy (`filtering`: iterative filtering), threadpoolctl (`parallel`: one numpy thread per
-worker process) and pytest (`test`).
+The extras add iterativefiltering, which provides Emanuele Papini's `fifpy`, and pyfftw (`filtering`: iterative
+filtering), threadpoolctl (`parallel`: one numpy thread per worker process) and pytest (`test`).
 
 ## Using pta
 

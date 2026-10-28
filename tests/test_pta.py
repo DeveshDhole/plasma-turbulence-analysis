@@ -209,3 +209,64 @@ def test_pdf_panel_options():
     with_mode = fit_and_plot_pdf(ax, values, "mode", bins=10, fit_loc=True, mark="mode")
     assert {"mode_lognorm", "loc_lognorm"} <= set(with_mode) and with_mode["mode_lognorm"] < with_mode["median_lognorm"]
     plt.close(fig)
+
+
+def test_cuts_across_a_sheet_match_the_single_sheet_notebooks():
+    from collections import deque
+    from scipy.ndimage import map_coordinates
+    from pta.sheets import descent_direction, fwhm_nearest_samples, grow_region, line_profile, width_along
+    nx = ny = 120
+    x, y = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
+    J2 = np.exp(-((x - 60 + 0.3 * (y - 60))**2) / 20.0) * np.exp(-((y - 60)**2) / 900.0) + 0.002 * np.random.default_rng(9).random((nx, ny))
+    cell = (61, 58)
+    # direction: the notebooks took np.gradient of the whole field
+    gradient_x, gradient_y = np.gradient(J2)
+    reference = -np.array([gradient_x[cell], gradient_y[cell]]); reference /= np.linalg.norm(reference)
+    direction = descent_direction(J2, cell)
+    assert np.array_equal(direction, reference)
+    for edge_cell in ((0, 5), (nx - 1, 7), (9, ny - 1)):
+        g = -np.array([gradient_x[edge_cell], gradient_y[edge_cell]]); g /= np.linalg.norm(g)
+        assert np.array_equal(descent_direction(J2, edge_cell), g)
+    # profile along the cut
+    s, profile = line_profile(J2, cell, direction, 30)
+    assert np.array_equal(profile, map_coordinates(J2, [cell[0] + s * direction[0], cell[1] + s * direction[1]], order=1))
+    # flood fill: the notebooks grew the region with a queue
+    threshold = 0.1 * J2[cell]
+    region = np.zeros_like(J2, dtype=bool); visited = np.zeros_like(J2, dtype=bool); queue = deque([cell])
+    while queue:
+        i, j = queue.popleft()
+        if visited[i, j]: continue
+        visited[i, j] = True
+        if J2[i, j] >= threshold:
+            region[i, j] = True
+            for di, dj in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                if 0 <= i + di < nx and 0 <= j + dj < ny and not visited[i + di, j + dj]:
+                    queue.append((i + di, j + dj))
+    assert np.array_equal(grow_region(J2, cell, threshold), region)
+    assert not grow_region(J2, (5, 5), threshold).any()
+    # width across the region: the notebooks walked forward and backward
+    def walk(sign):
+        xf, yf = float(cell[0]), float(cell[1])
+        for _ in range(1000):
+            xn, yn = xf + sign * direction[0], yf + sign * direction[1]
+            xi, yi = int(round(xn)), int(round(yn))
+            if xi < 0 or yi < 0 or xi >= nx or yi >= ny or not region[xi, yi]: break
+            xf, yf = xn, yn
+        return np.hypot(xf - cell[0], yf - cell[1])
+    width, forward, backward = width_along(region, cell, direction)
+    assert (forward, backward) == (walk(1), walk(-1)) and width == forward + backward
+    # Gaussian FWHM from whole-cell samples: about 2 sqrt(2 ln 2) times the sheet's sigma across it
+    k, values, parameters, fwhm = fwhm_nearest_samples(J2, cell, direction, half_length=40)
+    assert len(k) == 81 and 4 < fwhm < 14
+
+
+def test_harris_fit_recovers_a_harris_sheet():
+    from pta.sheets import fit_harris, harris_profile
+    s = np.linspace(-40, 40, 400)
+    noise = 0.002 * np.random.default_rng(10).normal(size=s.size)
+    signed = fit_harris(s, harris_profile(s, 0.3, 1.5, 4.0, 0.1) + noise)
+    assert abs(signed["delta"] - 4.0) < 0.1 and abs(signed["s0"] - 1.5) < 0.1
+    magnitude = fit_harris(s, np.abs(harris_profile(s, 0.3, -2.0, 6.0, 0.0)) + 0.05 + noise, magnitude=True)
+    assert abs(magnitude["delta"] - 6.0) < 0.2 and abs(magnitude["s0"] + 2.0) < 0.2
+    centred = fit_harris(s, harris_profile(s, 0.3, 0.0, 3.0, 0.0) + noise, centred=True)
+    assert centred["s0"] == 0.0 and abs(centred["delta"] - 3.0) < 0.1

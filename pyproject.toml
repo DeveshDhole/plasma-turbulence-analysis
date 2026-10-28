@@ -18,7 +18,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-filtering = ["fifpy"]                         # iterative filtering (pta.filtering.iterative_filtering*)
+filtering = ["iterativefiltering", "pyfftw"]   # iterative filtering: iterativefiltering provides the fifpy module
+                                              # (E. Papini); fifpy needs pyfftw but does not declare it
 parallel = ["threadpoolctl"]                  # one numpy/FFT thread per worker process
 test = ["pytest"]
 
